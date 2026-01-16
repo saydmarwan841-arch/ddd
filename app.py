@@ -35,7 +35,7 @@ class Config:
     # استخدام المسار النسبي الآمن لـ Vercel
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     QUESTIONS_FILE = os.path.join(BASE_DIR, 'questions_ar.json')
-    ADMIN_PASSWORD = 'love2024'
+    ADMIN_PASSWORD = '0000'
     MAX_QUESTIONS = 100
     ENCODING = 'utf-8'
 
