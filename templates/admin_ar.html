@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - إدارة الاختبار</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // تعطيل تحذيرات Tailwind CSS في بيئة التطوير
+        if (window.tailwind) {
+            window.tailwind.config = {
+                corePlugins: {
+                    preflight: true
+                }
+            };
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        html {
+            direction: rtl;
+        }
+
+        body {
+            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 25%, #f9a8d4 50%, #f472b6 75%, #ec4899 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .dashboard-card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 32px rgba(236, 72, 153, 0.2);
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+            border: 2px solid rgba(236, 72, 153, 0.3);
+        }
+
+        .question-item {
+            background: rgba(255, 255, 255, 0.9);
+            border-left: 4px solid #ec4899;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(236, 72, 153, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(244, 63, 94, 0.3);
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        input,
+        textarea {
+            transition: all 0.3s ease;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: #ec4899 !important;
+            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1) !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto">
+            <!-- رأس الصفحة -->
+            <div class="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4">
+                <div>
+                    <h1 class="text-4xl font-bold text-white drop-shadow-lg">📊 لوحة التحكم</h1>
+                    <p class="text-pink-100 text-sm mt-1">إدارة أسئلة اختبار الحب الرومانسي</p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="addQuestionBtn" onclick="openAddModal()"
+                        class="btn-primary text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg">
+                        ➕ إضافة سؤال جديد
+                    </button>
+                    <a href="/admin/logout"
+                        class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg transition">
+                        🚪 تسجيل خروج
+                    </a>
+                </div>
+            </div>
+
+            <!-- بطاقات الإحصائيات -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="stat-card rounded-lg p-6 text-center">
+                    <p class="text-gray-600 text-sm font-medium mb-2">إجمالي الأسئلة</p>
+                    <p class="text-4xl font-bold text-pink-600" id="totalQuestions">0</p>
+                </div>
+                <div class="stat-card rounded-lg p-6 text-center">
+                    <p class="text-gray-600 text-sm font-medium mb-2">الفئات</p>
+                    <p class="text-4xl font-bold text-pink-600" id="totalCategories">0</p>
+                </div>
+                <div class="stat-card rounded-lg p-6 text-center">
+                    <p class="text-gray-600 text-sm font-medium mb-2">آخر تحديث</p>
+                    <p class="text-lg font-bold text-pink-600" id="lastUpdated">الآن</p>
+                </div>
+            </div>
+
+            <!-- قائمة الأسئلة -->
+            <div class="dashboard-card rounded-2xl p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">📝 الأسئلة</h2>
+                <div id="questionsContainer" class="space-y-4">
+                    <div class="text-center py-12">
+                        <p class="text-gray-500 text-lg">جاري تحميل الأسئلة...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نموذج إضافة/تعديل السؤال -->
+    <div id="questionModal" class="modal">
+        <div class="modal-content fade-in">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6" id="modalTitle">إضافة سؤال جديد</h2>
+
+            <form id="questionForm" onsubmit="handleFormSubmit(event)" class="space-y-6">
+                <!-- نوع السؤال -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">نوع السؤال</label>
+                    <select id="questionType" name="type" onchange="updateQuestionType()"
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none" required>
+                        <option value="">-- اختر نوع السؤال --</option>
+                        <option value="mcq">اختيار من متعدد (MCQ)</option>
+                        <option value="tf">صح / خطأ (True/False)</option>
+                    </select>
+                </div>
+
+                <!-- نص السؤال -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">السؤال</label>
+                    <textarea id="questionText" name="question" placeholder="أدخل السؤال هنا..."
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none resize-none"
+                        rows="3" required></textarea>
+                </div>
+
+                <!-- حاوية الخيارات (متغيرة حسب النوع) -->
+                <div id="optionsContainer">
+                    <!-- الخيار 1 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الخيار الأول</label>
+                        <input type="text" id="option0" name="option0" placeholder="أدخل الخيار الأول..."
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <!-- الخيار 2 -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الخيار الثاني</label>
+                        <input type="text" id="option1" name="option1" placeholder="أدخل الخيار الثاني..."
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <!-- الخيار 3 (مخفي للأسئلة True/False) -->
+                    <div id="option2Container">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الخيار الثالث</label>
+                        <input type="text" id="option2" name="option2" placeholder="أدخل الخيار الثالث..."
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <!-- الخيار 4 (مخفي للأسئلة True/False) -->
+                    <div id="option3Container">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الخيار الرابع</label>
+                        <input type="text" id="option3" name="option3" placeholder="أدخل الخيار الرابع..."
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none" required>
+                    </div>
+                </div>
+
+                <!-- الإجابة الصحيحة -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">الإجابة الصحيحة</label>
+                    <select id="correctAnswer" name="correct_answer"
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none" required>
+                        <option value="">-- اختر الإجابة الصحيحة --</option>
+                        <option value="0" id="ansOption0">الخيار الأول</option>
+                        <option value="1" id="ansOption1">الخيار الثاني</option>
+                        <option value="2" id="ansOption2">الخيار الثالث</option>
+                        <option value="3" id="ansOption3">الخيار الرابع</option>
+                    </select>
+                </div>
+
+                <!-- الفئة -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">الفئة</label>
+                    <input type="text" id="category" name="category" placeholder="مثال: الحب، العلاقات، الرومانسية..."
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none" required>
+                </div>
+
+                <!-- أزرار النموذج -->
+                <div class="flex gap-4 pt-4">
+                    <button type="submit" id="submitBtn"
+                        class="flex-1 btn-primary text-white font-bold py-3 px-4 rounded-lg">
+                        💾 حفظ السؤال
+                    </button>
+                    <button type="button" onclick="closeModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-4 rounded-lg transition">
+                        ❌ إلغاء
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let questions = [];
+        let editingId = null;
+
+        // تحميل الأسئلة
+        async function loadQuestions() {
+            try {
+                const response = await fetch('/api/questions');
+                questions = await response.json();
+                renderQuestions();
+                updateStats();
+            } catch (error) {
+                console.error('خطأ في تحميل الأسئلة:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'فشل تحميل الأسئلة',
+                    confirmButtonColor: '#ec4899'
+                });
+            }
+        }
+
+        // عرض الأسئلة
+        function renderQuestions() {
+            const container = document.getElementById('questionsContainer');
+
+            if (questions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <p class="text-gray-500 text-lg mb-4">لا توجد أسئلة حتى الآن</p>
+                        <button onclick="openAddModal()" class="btn-primary text-white font-bold py-2 px-6 rounded-lg">
+                            ➕ أضف السؤال الأول
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = questions.map((q, index) => `
+                <div class="question-item rounded-lg p-6 fade-in">
+                    <div class="flex flex-col sm:flex-row items-start justify-between gap-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-3">
+                                <span class="bg-pink-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">${index + 1}</span>
+                                <span class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold">${q.category}</span>
+                            </div>
+                            <p class="text-gray-800 font-semibold mb-4 text-lg">${q.question}</p>
+                            <ul class="space-y-2">
+                                ${q.options.map((opt, i) => `
+                                    <li class="text-gray-700 ${i === q.correct_answer ? 'font-bold text-green-600' : ''}">
+                                        ${i === q.correct_answer ? '✓' : '○'} ${opt}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        <div class="flex gap-2 sm:flex-col w-full sm:w-auto">
+                            <button onclick="editQuestion(${q.id})" class="btn-edit text-white font-bold py-2 px-4 rounded-lg flex-1 sm:flex-none">
+                                ✏️ تعديل
+                            </button>
+                            <button onclick="deleteQuestion(${q.id})" class="btn-danger text-white font-bold py-2 px-4 rounded-lg flex-1 sm:flex-none">
+                                🗑️ حذف
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // تحديث الإحصائيات
+        function updateStats() {
+            document.getElementById('totalQuestions').textContent = questions.length;
+            const categories = new Set(questions.map(q => q.category));
+            document.getElementById('totalCategories').textContent = categories.size;
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString('ar-SA');
+        }
+
+        // فتح نموذج الإضافة
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = 'إضافة سؤال جديد';
+            document.getElementById('questionForm').reset();
+            document.getElementById('submitBtn').textContent = '💾 حفظ السؤال';
+            document.getElementById('questionModal').classList.add('active');
+            document.getElementById('questionText').focus();
+            resetQuestionType();
+        }
+
+        // تحديث نوع السؤال
+        function updateQuestionType() {
+            const type = document.getElementById('questionType').value;
+            const option2Container = document.getElementById('option2Container');
+            const option3Container = document.getElementById('option3Container');
+            const ansOption2 = document.getElementById('ansOption2');
+            const ansOption3 = document.getElementById('ansOption3');
+            const option2 = document.getElementById('option2');
+            const option3 = document.getElementById('option3');
+
+            if (type === 'tf') {
+                // إخفاء الخيارات 3 و 4
+                option2Container.style.display = 'none';
+                option3Container.style.display = 'none';
+                ansOption2.style.display = 'none';
+                ansOption3.style.display = 'none';
+
+                // تعيين الخيارات تلقائياً
+                document.getElementById('option0').value = 'صح';
+                document.getElementById('option1').value = 'خطأ';
+                option2.removeAttribute('required');
+                option3.removeAttribute('required');
+            } else if (type === 'mcq') {
+                // إظهار جميع الخيارات
+                option2Container.style.display = 'block';
+                option3Container.style.display = 'block';
+                ansOption2.style.display = 'block';
+                ansOption3.style.display = 'block';
+                option2.setAttribute('required', 'required');
+                option3.setAttribute('required', 'required');
+
+                // مسح القيم التلقائية
+                document.getElementById('option0').value = '';
+                document.getElementById('option1').value = '';
+            }
+        }
+
+        // إعادة تعيين نوع السؤال
+        function resetQuestionType() {
+            document.getElementById('questionType').value = '';
+            document.getElementById('option2Container').style.display = 'block';
+            document.getElementById('option3Container').style.display = 'block';
+            document.getElementById('ansOption2').style.display = 'block';
+            document.getElementById('ansOption3').style.display = 'block';
+            document.getElementById('option2').setAttribute('required', 'required');
+            document.getElementById('option3').setAttribute('required', 'required');
+        }
+
+        // تحرير سؤال
+        function editQuestion(id) {
+            const question = questions.find(q => q.id === id);
+            if (!question) return;
+
+            editingId = id;
+            document.getElementById('modalTitle').textContent = 'تعديل السؤال';
+            document.getElementById('questionType').value = question.type || 'mcq';
+            updateQuestionType();
+            document.getElementById('questionText').value = question.question;
+            document.getElementById('option0').value = question.options[0];
+            document.getElementById('option1').value = question.options[1];
+            if (question.options[2]) document.getElementById('option2').value = question.options[2];
+            if (question.options[3]) document.getElementById('option3').value = question.options[3];
+            document.getElementById('correctAnswer').value = question.correct_answer;
+            document.getElementById('category').value = question.category;
+            document.getElementById('submitBtn').textContent = '💾 تحديث السؤال';
+            document.getElementById('questionModal').classList.add('active');
+        }
+
+        // إغلاق النموذج
+        function closeModal() {
+            document.getElementById('questionModal').classList.remove('active');
+            editingId = null;
+        }
+
+        // معالجة إرسال النموذج
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const type = document.getElementById('questionType').value;
+            if (!type) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'اختر نوع السؤال',
+                    text: 'يرجى اختيار نوع السؤال أولاً!',
+                    confirmButtonColor: '#ec4899'
+                });
+                return;
+            }
+
+            const options = type === 'tf'
+                ? [document.getElementById('option0').value, document.getElementById('option1').value]
+                : [
+                    document.getElementById('option0').value,
+                    document.getElementById('option1').value,
+                    document.getElementById('option2').value,
+                    document.getElementById('option3').value
+                ];
+
+            const data = {
+                type: type,
+                question: document.getElementById('questionText').value,
+                options: options,
+                correct_answer: parseInt(document.getElementById('correctAnswer').value),
+                category: document.getElementById('category').value
+            };
+
+            try {
+                let response;
+                if (editingId) {
+                    response = await fetch(`/api/admin/update-question/${editingId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    response = await fetch('/api/admin/add-question', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                }
+
+                if (response.ok) {
+                    closeModal();
+                    loadQuestions();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'نجح!',
+                        text: editingId ? 'تم تحديث السؤال بنجاح' : 'تم إضافة السؤال بنجاح',
+                        confirmButtonColor: '#ec4899'
+                    });
+                } else {
+                    throw new Error('فشل الحفظ');
+                }
+            } catch (error) {
+                console.error('خطأ:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'فشل حفظ السؤال. يرجى المحاولة مرة أخرى.',
+                    confirmButtonColor: '#ec4899'
+                });
+            }
+        }
+
+        // حذف سؤال
+        async function deleteQuestion(id) {
+            const confirmed = await Swal.fire({
+                title: 'هل أنت متأكد؟',
+                text: 'لا يمكن التراجع عن هذا الإجراء!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#f43f5e',
+                cancelButtonColor: '#ec4899',
+                confirmButtonText: '✓ نعم، احذفه',
+                cancelButtonText: 'إلغاء'
+            });
+
+            if (!confirmed.isConfirmed) return;
+
+            try {
+                const response = await fetch(`/api/admin/delete-question/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadQuestions();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم الحذف!',
+                        text: 'تم حذف السؤال بنجاح',
+                        confirmButtonColor: '#ec4899'
+                    });
+                } else {
+                    throw new Error('فشل الحذف');
+                }
+            } catch (error) {
+                console.error('خطأ:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'فشل حذف السؤال. يرجى المحاولة مرة أخرى.',
+                    confirmButtonColor: '#ec4899'
+                });
+            }
+        }
+
+        // إغلاق النموذج عند النقر على الخلفية
+        document.getElementById('questionModal').addEventListener('click', function (event) {
+            if (event.target === this) {
+                closeModal();
+            }
+        });
+
+        // تحميل الأسئلة عند فتح الصفحة
+        window.addEventListener('DOMContentLoaded', loadQuestions);
+    </script>
+</body>
+
+</html>

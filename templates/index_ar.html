@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<!--
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+تطبيق اختبار الحب الرومانسي - صفحة الاختبار
+Romantic Love Quiz Application - Quiz Page
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Version: 3.0 - Modern UI Redesign
+Language: HTML5 + Arabic
+Framework: Tailwind CSS + Custom CSS
+Description: صفحة الاختبار التفاعلية بتصميم عصري وأنيق
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-->
+
+<head>
+    <!-- Meta Information -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ec4899">
+    <meta name="description" content="اختبر مشاعرك الرومانسية من خلال اختبار الحب الشامل">
+
+    <!-- Title -->
+    <title>اختبار الحب الرومانسي - اختبر معرفتك بالحب 💕</title>
+
+    <!-- Favicon -->
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💕</text></svg>">
+
+    <!-- Google Fonts - Cairo -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+
+    <!-- External CSS Libraries -->
+    <link href="https://cdn.tailwindcss.com" rel="stylesheet">
+    <script>
+        // تعطيل تحذيرات Tailwind CSS في بيئة التطوير
+        if (window.tailwind) {
+            window.tailwind.config = {
+                corePlugins: {
+                    preflight: true
+                }
+            };
+        }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- External JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* ==================== الأساسيات والإعدادات العامة ==================== */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            direction: rtl;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            direction: rtl;
+            text-align: right;
+            background: linear-gradient(135deg, #fce7f3 0%, #f3e8ff 50%, #fce7f3 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+        }
+
+        /* تحريك تدرج لوني مناسب */
+        @keyframes gradientShift {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        /* تحريك نبضة القلب */
+        @keyframes heartbeat {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.15);
+            }
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        .heart-icon {
+            animation: heartbeat 1.5s ease-in-out infinite;
+        }
+
+        /* ==================== الرأس (Header) ==================== */
+
+        header {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #be185d;
+            margin-top: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            color: #9f1239;
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+            font-weight: 300;
+        }
+
+        /* ==================== بطاقة الاختبار (Quiz Card) - Glassmorphism ==================== */
+
+        .quiz-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 8px 32px rgba(236, 72, 153, 0.15);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 700px;
+            margin: 2rem auto;
+        }
+
+        .quiz-card:hover {
+            box-shadow: 0 16px 48px rgba(236, 72, 153, 0.25);
+            border-color: rgba(236, 72, 153, 0.5);
+            transform: translateY(-4px);
+        }
+
+        /* ==================== شريط التقدم (Progress Bar) ==================== */
+
+        .progress-section {
+            margin-bottom: 2rem;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .progress-info span {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, rgba(236, 72, 153, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ec4899 0%, #a855f7 100%);
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 10px;
+        }
+
+        /* ==================== بطاقة السؤال (Question Card) ==================== */
+
+        #questionCard {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
+            border: 1px solid rgba(236, 72, 153, 0.15);
+            border-radius: 16px;
+            padding: 1.75rem;
+            margin-bottom: 2rem;
+            border-right: 4px solid #ec4899;
+        }
+
+        #questionCard h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+        }
+
+        #questionCard p {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-top: 0.75rem;
+        }
+
+        /* ==================== حاوية الخيارات (Options Container) ==================== */
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+
+        .options-container button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 16px 20px;
+            text-align: center;
+            border-radius: 14px;
+            border: 2px solid #e5b8d4;
+            background-color: #ffffff;
+            color: #374151;
+            font-weight: 600;
+            font-size: 1rem;
+            font-family: 'Cairo', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            direction: rtl;
+            min-height: 56px;
+            box-shadow: 0 2px 8px rgba(236, 72, 153, 0.08);
+        }
+
+        .options-container button:hover {
+            background-color: #fce7f3;
+            border-color: #ec4899;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(236, 72, 153, 0.25);
+        }
+
+        .options-container button:active {
+            transform: translateY(-1px);
+        }
+
+        /* حالة الخيار المختار */
+        .options-container button.bg-blue-400 {
+            background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+            color: #fff;
+            border-color: #ec4899;
+            box-shadow: 0 8px 20px rgba(236, 72, 153, 0.35);
+        }
+
+        .options-container button.ring-2 {
+            box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.2), 0 8px 20px rgba(236, 72, 153, 0.25);
+        }
+
+        /* ==================== أزرار التحكم (Control Buttons) ==================== */
+
+        .controls-section {
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+        }
+
+        .controls-section button {
+            flex: 1;
+            padding: 14px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'Cairo', sans-serif;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #prevBtn {
+            background-color: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        #prevBtn:hover {
+            background-color: #e5e7eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #nextBtn {
+            background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+        }
+
+        #nextBtn:hover {
+            box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
+            transform: translateY(-2px);
+        }
+
+        #nextBtn:disabled,
+        #prevBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ==================== شاشة النتائج (Results Screen) ==================== */
+
+        #results {
+            text-align: center;
+            padding: 3rem 2rem;
+            display: none;
+        }
+
+        #results.show {
+            display: block;
+        }
+
+        #results .emoji {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        #results h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1.5rem;
+        }
+
+        #results .score-card {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+            border: 2px solid rgba(236, 72, 153, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+        }
+
+        #results .score-value {
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        #results .percentage {
+            font-size: 1.5rem;
+            color: #ec4899;
+            font-weight: 700;
+        }
+
+        #results p {
+            font-size: 1.1rem;
+            color: #4b5563;
+            font-style: italic;
+            margin: 1.5rem 0;
+        }
+
+        #results button {
+            background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+            color: #fff;
+            padding: 14px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'Cairo', sans-serif;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        #results button:hover {
+            box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* ==================== التذييل (Footer) ==================== */
+
+        footer {
+            background: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(10px);
+            color: #d1d5db;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        footer p {
+            margin: 0.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        footer a {
+            color: #ec4899;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        footer a:hover {
+            color: #f472b6;
+        }
+
+        /* ==================== الاستجابة للشاشات الصغيرة ==================== */
+
+        @media (max-width: 640px) {
+            body {
+                padding: 0;
+            }
+
+            .quiz-card {
+                padding: 1.5rem;
+                margin: 1rem;
+                border-radius: 20px;
+            }
+
+            header h1 {
+                font-size: 2rem;
+            }
+
+            header p {
+                font-size: 1rem;
+            }
+
+            #questionCard {
+                padding: 1.25rem;
+            }
+
+            #questionCard h2 {
+                font-size: 1.25rem;
+            }
+
+            .options-container button {
+                padding: 14px 16px;
+                font-size: 0.95rem;
+                min-height: 52px;
+            }
+
+            #results h2 {
+                font-size: 1.75rem;
+            }
+
+            #results .emoji {
+                font-size: 3rem;
+            }
+
+            #results .score-value {
+                font-size: 2.5rem;
+            }
+
+            .controls-section {
+                gap: 0.75rem;
+            }
+
+            .controls-section button {
+                padding: 12px 16px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ==================== الرأس (Header) ==================== -->
+    <header>
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem;">
+            <span class="heart-icon" style="font-size: 3rem;">💕</span>
+        </div>
+        <h1>اختبار الحب الرومانسي</h1>
+        <p>اختبر مشاعرك الرومانسية واكتشف مدى عمق حبك</p>
+    </header>
+
+    <!-- ==================== المحتوى الرئيسي (Main Content) ==================== -->
+    <main>
+
+        <!-- بطاقة الاختبار -->
+        <div class="quiz-card" id="quizContainer">
+
+            <!-- شريط التقدم -->
+            <div class="progress-section">
+                <div class="progress-info">
+                    <span>
+                        السؤال <span id="currentQuestion">1</span> من <span id="totalQuestions">0</span>
+                    </span>
+                    <div style="color: #9ca3af; font-size: 0.9rem;">جاري الاختبار...</div>
+                </div>
+                <div class="progress-bar-container" role="progressbar">
+                    <div id="progressBar" class="progress-bar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- بطاقة السؤال -->
+            <div id="questionCard">
+                <h2>جاري تحميل السؤال...</h2>
+            </div>
+
+            <!-- حاوية الخيارات -->
+            <div id="optionsContainer" class="options-container">
+                <div style="text-align: center; color: #9ca3af;">جاري تحميل الخيارات...</div>
+            </div>
+
+            <!-- أزرار التحكم -->
+            <div class="controls-section">
+                <button id="prevBtn" onclick="previousQuestion()" aria-label="السؤال السابق">
+                    ← السابق
+                </button>
+                <button id="nextBtn" onclick="nextQuestion()" aria-label="السؤال التالي">
+                    التالي →
+                </button>
+            </div>
+        </div>
+
+        <!-- حاوية النتائج -->
+        <div id="results" class="quiz-card" style="display: none;">
+            <!-- سيتم ملؤها بواسطة JavaScript -->
+        </div>
+
+    </main>
+
+    <!-- ==================== التذييل (Footer) ==================== -->
+    <footer>
+        <p>💕 اختبار الحب الرومانسي 💕</p>
+        <p style="font-size: 0.85rem; color: #9ca3af;">تم إنشاؤه بواسطة فريق اختبار الحب</p>
+        <p style="margin-top: 1rem; font-size: 0.8rem;">
+            <a href="#">سياسة الخصوصية</a> | <a href="#">الشروط والأحكام</a>
+        </p>
+    </footer>
+
+    <!-- ==================== Scripts ====================  -->
+
+    <!-- Inline Script for Configuration - Must come BEFORE quiz.js -->
+    <script>
+        // تمرير الأسئلة إلى الـ Quiz Module
+        window.preloadedQuestions = {{ questions | tojson | safe }};
+    </script>
+
+    <!-- Custom Quiz Module -->
+    <script src="{{ url_for('static', filename='js/quiz.js') }}" defer></script>
+
+</body>
+
+</html>

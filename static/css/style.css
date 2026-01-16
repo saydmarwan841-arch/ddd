@@ -1,0 +1,455 @@
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * تطبيق اختبار الحب - أنماط إضافية
+ * Romantic Love Quiz - Custom Styles
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+:root {
+    --color-primary: #ec4899;
+    /* وردي أساسي */
+    --color-primary-dark: #be185d;
+    /* وردي داكن */
+    --color-success: #10b981;
+    /* أخضر */
+    --color-danger: #ef4444;
+    /* أحمر */
+    --color-warning: #f59e0b;
+    /* برتقالي */
+    --color-info: #3b82f6;
+    /* أزرق */
+    --color-light: #f3f4f6;
+    /* رمادي فاتح */
+    --color-dark: #1f2937;
+    /* رمادي داكن */
+
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+    --transition-fast: 150ms ease-in-out;
+    --transition-base: 250ms ease-in-out;
+    --transition-slow: 350ms ease-in-out;
+}
+
+/* ==================== الخلفيات والأساليب الأساسية ==================== */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    direction: rtl;
+    text-align: right;
+    background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%);
+    min-height: 100vh;
+    color: var(--color-dark);
+}
+
+/* ==================== الحاويات ====================  */
+
+.quiz-container {
+    max-width: 600px;
+    margin: var(--spacing-xl) auto;
+    padding: var(--spacing-lg);
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.5s var(--transition-base);
+}
+
+.question-card {
+    background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+    border-right: 4px solid var(--color-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.options-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+/* ==================== شريط التقدم ==================== */
+
+.progress-bar-wrapper {
+    height: 8px;
+    background: var(--color-light);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-lg);
+    box-shadow: inset var(--shadow-sm);
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-danger));
+    border-radius: 4px;
+    transition: width var(--transition-base);
+    box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+}
+
+.progress-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: var(--spacing-md);
+}
+
+/* ==================== الأزرار ==================== */
+
+button {
+    transition: all var(--transition-base);
+    cursor: pointer;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    outline: none;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* زر أساسي */
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    color: white;
+    padding: var(--spacing-md) var(--spacing-lg);
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+}
+
+/* زر ثانوي */
+.btn-secondary {
+    background: var(--color-light);
+    color: var(--color-dark);
+    padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #e5e7eb;
+}
+
+/* خيار متعدد */
+.option-btn {
+    background: var(--color-light);
+    color: var(--color-dark);
+    padding: var(--spacing-md);
+    text-align: right;
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+}
+
+.option-btn:hover {
+    background: #e5e7eb;
+    border-color: var(--color-primary);
+}
+
+.option-btn.selected {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-danger));
+    color: white;
+    border-color: var(--color-primary);
+}
+
+/* ==================== نموذج اختبار صح/خطأ ==================== */
+
+.true-false-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
+}
+
+.tf-btn {
+    padding: var(--spacing-xl);
+    font-size: 1.25rem;
+    border-radius: var(--radius-lg);
+    font-weight: 700;
+    transition: all var(--transition-base);
+    border: 2px solid transparent;
+}
+
+.tf-btn-true {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    color: #047857;
+    border-color: #10b981;
+}
+
+.tf-btn-true:hover {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    transform: translateY(-4px);
+}
+
+.tf-btn-true.selected {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
+}
+
+.tf-btn-false {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    color: #dc2626;
+    border-color: #ef4444;
+}
+
+.tf-btn-false:hover {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+    transform: translateY(-4px);
+}
+
+.tf-btn-false.selected {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.5);
+}
+
+/* ==================== شاشة النتائج ==================== */
+
+.results-container {
+    display: none;
+    text-align: center;
+    padding: var(--spacing-xl);
+}
+
+.results-container.show {
+    display: block;
+    animation: slideUp 0.5s var(--transition-base);
+}
+
+.results-emoji {
+    font-size: 5rem;
+    margin-bottom: var(--spacing-lg);
+}
+
+.results-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.score-box {
+    background: linear-gradient(135deg, #fce4ec, #f3e5f5);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    margin: var(--spacing-lg) 0;
+    box-shadow: var(--shadow-md);
+}
+
+.score-number {
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: var(--spacing-md) 0;
+}
+
+.score-percentage {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.love-message {
+    font-size: 1.25rem;
+    color: #6b7280;
+    font-style: italic;
+    margin: var(--spacing-lg) 0;
+    line-height: 1.8;
+}
+
+/* ==================== التنبيهات ====================  */
+
+.alert {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+    border-right: 4px solid;
+    animation: slideDown 0.3s var(--transition-fast);
+}
+
+.alert-success {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #10b981;
+}
+
+.alert-error {
+    background: #fef2f2;
+    color: #991b1b;
+    border-color: #ef4444;
+}
+
+.alert-warning {
+    background: #fffbeb;
+    color: #92400e;
+    border-color: #f59e0b;
+}
+
+/* ==================== الأنيميشن ====================  */
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px currentColor;
+    }
+
+    50% {
+        box-shadow: 0 0 20px currentColor;
+    }
+}
+
+.animate-pulse {
+    animation: pulse var(--transition-slow) infinite;
+}
+
+.animate-glow {
+    animation: glow var(--transition-slow) infinite;
+}
+
+/* ==================== الحالات الحساسة ====================  */
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+}
+
+/* ==================== الوسائط المتجاوبة ==================== */
+
+@media (max-width: 768px) {
+    .quiz-container {
+        margin: var(--spacing-md);
+        padding: var(--spacing-md);
+    }
+
+    .true-false-container {
+        grid-template-columns: 1fr;
+    }
+
+    .results-emoji {
+        font-size: 4rem;
+    }
+
+    .results-title {
+        font-size: 1.5rem;
+    }
+
+    .score-number {
+        font-size: 2.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .quiz-container {
+        margin: var(--spacing-sm);
+        padding: var(--spacing-md);
+    }
+
+    .question-card {
+        padding: var(--spacing-lg);
+    }
+
+    button {
+        padding: var(--spacing-md) var(--spacing-lg) !important;
+        font-size: 0.875rem;
+    }
+}
+
+/* ==================== الطباعة ====================  */
+
+@media print {
+    body {
+        background: white;
+    }
+
+    .quiz-container {
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+}
+
+/* ==================== التحسينات اللاحقة ==================== */
+
+/* تحسين سهولة الوصول */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* تحسين الأداء */
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دخول المسؤول - اختبار الحب الرومانسي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // تعطيل تحذيرات Tailwind CSS في بيئة التطوير
+        if (window.tailwind) {
+            window.tailwind.config = {
+                corePlugins: {
+                    preflight: true
+                }
+            };
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        html {
+            direction: rtl;
+        }
+
+        body {
+            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 25%, #f9a8d4 50%, #f472b6 75%, #ec4899 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .login-card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 32px rgba(236, 72, 153, 0.2);
+        }
+
+        .heart-icon {
+            animation: heartbeat 1.5s ease infinite;
+        }
+
+        @keyframes heartbeat {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+        }
+
+        input {
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            border-color: #ec4899 !important;
+            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1) !important;
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(236, 72, 153, 0.3);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-md">
+            <!-- الرأس -->
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-white mb-2 drop-shadow-lg">
+                    <span class="heart-icon">❤️</span> دخول المسؤول <span class="heart-icon">🔐</span>
+                </h1>
+                <p class="text-pink-100 text-sm">أدخل كلمة المرور للوصول إلى لوحة التحكم</p>
+            </div>
+
+            <!-- نموذج الدخول -->
+            <form method="POST" onsubmit="handleLogin(event)" class="space-y-6">
+                <div class="login-card rounded-2xl p-8">
+                    <!-- حقل كلمة المرور -->
+                    <div class="mb-6">
+                        <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">
+                            كلمة المرور
+                        </label>
+                        <input type="password" id="password" name="password" placeholder="أدخل كلمة المرور السرية"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none text-right font-medium"
+                            required autofocus>
+                        <p class="text-xs text-gray-500 mt-2">💡 نصيحة: كلمة المرور متعلقة بالحب!</p>
+                    </div>
+
+                    <!-- زر الدخول -->
+                    <button type="submit" class="w-full btn-login text-white font-bold py-3 px-4 rounded-lg text-lg">
+                        🔓 دخول آمن
+                    </button>
+
+                    <!-- رابط العودة -->
+                    <div class="text-center mt-6">
+                        <a href="/" class="text-gray-600 hover:text-gray-800 text-sm font-medium">
+                            ← العودة إلى الاختبار
+                        </a>
+                    </div>
+                </div>
+
+                <!-- رسالة معلومات -->
+                <div class="bg-white/60 rounded-lg p-4 text-center">
+                    <p class="text-gray-700 text-sm">
+                        <span class="font-semibold">ملاحظة:</span> هذه منطقة محمية للمسؤولين فقط. يرجى عدم مشاركة كلمة
+                        المرور مع الآخرين.
+                    </p>
+                </div>
+            </form>
+
+            <!-- الفترة -->
+            <div class="text-center mt-8">
+                <a href="/" class="text-white/80 hover:text-white text-xs transition">
+                    اختبار الحب الرومانسي © 2024
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleLogin(event) {
+            event.preventDefault();
+
+            const password = document.getElementById('password').value;
+
+            if (!password) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'حقل مطلوب',
+                    text: 'يرجى إدخال كلمة المرور!',
+                    confirmButtonColor: '#ec4899'
+                });
+                return;
+            }
+
+            // إرسال النموذج
+            const form = event.target;
+            form.submit();
+        }
+
+        // تركيز تلقائي على حقل كلمة المرور
+        document.getElementById('password').focus();
+
+        // التعامل مع رسائل الخطأ من الخادم
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('error')) {
+            const errorMessage = urlParams.get('error');
+            if (errorMessage === 'invalid') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'كلمة مرور خاطئة',
+                    text: 'كلمة المرور التي أدخلتها غير صحيحة. يرجى المحاولة مرة أخرى.',
+                    confirmButtonColor: '#ec4899'
+                }).then(() => {
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').focus();
+                });
+            }
+        }
+    </script>
+</body>
+
+</html>
