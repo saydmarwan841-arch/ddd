@@ -32,7 +32,9 @@ app.secret_key = secrets.token_hex(32)
 # ==================== الإعدادات والثوابت ====================
 class Config:
     """إعدادات التطبيق"""
-    QUESTIONS_FILE = 'questions_ar.json'
+    # استخدام المسار النسبي الآمن لـ Vercel
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    QUESTIONS_FILE = os.path.join(BASE_DIR, 'questions_ar.json')
     ADMIN_PASSWORD = 'love2024'
     MAX_QUESTIONS = 100
     ENCODING = 'utf-8'
@@ -58,11 +60,16 @@ def load_questions():
                 if isinstance(questions, list):
                     return questions
                 return []
-    except (json.JSONDecodeError, IOError) as e:
-        print(f"خطأ في تحميل الأسئلة: {e}")
         return []
-    
-    return []
+    except json.JSONDecodeError as e:
+        print(f"خطأ في فك تشفير JSON عند تحميل الأسئلة: {e}")
+        return []
+    except IOError as e:
+        print(f"خطأ في الوصول للملف عند تحميل الأسئلة: {e}")
+        return []
+    except Exception as e:
+        print(f"خطأ غير متوقع عند تحميل الأسئلة: {e}")
+        return []
 
 
 def save_questions(questions):
@@ -73,9 +80,19 @@ def save_questions(questions):
         questions (list): قائمة الأسئلة للحفظ
     
     Returns:
-        bool: True عند النجاح، False عند الفشل
+        tuple: (success: bool, error_message: str or None)
     """
     try:
+        # التحقق من أن البيانات قابلة للتسلسل
+        if not isinstance(questions, list):
+            return False, "البيانات يجب أن تكون قائمة"
+        
+        # التأكد من وجود المجلد
+        dir_path = os.path.dirname(Config.QUESTIONS_FILE)
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+        
+        # كتابة البيانات إلى الملف
         with open(Config.QUESTIONS_FILE, 'w', encoding=Config.ENCODING) as f:
             json.dump(
                 questions, f, 
@@ -83,10 +100,23 @@ def save_questions(questions):
                 ensure_ascii=False,
                 sort_keys=False
             )
-        return True
+        return True, None
+    except json.JSONDecodeError as e:
+        error_msg = f"خطأ في تحويل البيانات إلى JSON: {str(e)}"
+        print(error_msg)
+        return False, error_msg
     except IOError as e:
-        print(f"خطأ في حفظ الأسئلة: {e}")
-        return False
+        error_msg = f"خطأ في الوصول للملف: {str(e)}"
+        print(error_msg)
+        return False, error_msg
+    except PermissionError as e:
+        error_msg = f"خطأ في الصلاحيات: {str(e)}"
+        print(error_msg)
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"خطأ غير متوقع عند حفظ الأسئلة: {str(e)}"
+        print(error_msg)
+        return False, error_msg
 
 
 def find_question_by_id(questions, q_id):
@@ -309,13 +339,14 @@ def add_question():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'success': False, 'error': 'بيانات غير صحيحة'}), 400
+            return jsonify({'success': False, 'error': 'بيانات غير صحيحة. لم يتم استقبال JSON'}), 400
         
         # التحقق من صحة البيانات
         is_valid, error_msg = validate_question_data(data)
         if not is_valid:
             return jsonify({'success': False, 'error': error_msg}), 400
         
+        # تحميل الأسئلة الحالية
         questions = load_questions()
         
         # إنشاء سؤال جديد بمعرف فريد
@@ -332,19 +363,24 @@ def add_question():
         
         questions.append(new_question)
         
-        if save_questions(questions):
+        # حفظ الأسئلة المحدثة
+        success, error = save_questions(questions)
+        if success:
             return jsonify({'success': True, 'question': new_question}), 201
         else:
             return jsonify({
                 'success': False, 
-                'error': 'فشل حفظ السؤال'
+                'error': f'فشل حفظ السؤال: {error}'
             }), 500
     
+    except json.JSONDecodeError as e:
+        error_msg = f'خطأ في معالجة JSON: {str(e)}'
+        print(error_msg)
+        return jsonify({'success': False, 'error': error_msg}), 400
     except Exception as e:
-        return jsonify({
-            'success': False, 
-            'error': f'خطأ سيرفر: {str(e)}'
-        }), 500
+        error_msg = f'خطأ سيرفر غير متوقع: {str(e)}'
+        print(f"خطأ في add_question: {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
 
 
 @app.route('/api/admin/update-question/<int:q_id>', methods=['POST', 'PUT'])
@@ -370,19 +406,20 @@ def update_question(q_id):
         if not data:
             return jsonify({'success': False, 'error': 'بيانات غير صحيحة'}), 400
         
+        # تحميل الأسئلة الحالية
         questions = load_questions()
         question = find_question_by_id(questions, q_id)
         
         if not question:
             return jsonify({
                 'success': False, 
-                'error': 'السؤال غير موجود'
+                'error': f'السؤال برقم {q_id} غير موجود'
             }), 404
         
         # تحديث بيانات السؤال
         question['type'] = data.get('type', question.get('type', 'mcq'))
-        question['question'] = data.get('question', question['question'])
-        question['options'] = data.get('options', question['options'])
+        question['question'] = data.get('question', question.get('question'))
+        question['options'] = data.get('options', question.get('options'))
         question['correct_answer'] = data.get(
             'correct_answer', 
             question.get('correct_answer')
@@ -392,19 +429,24 @@ def update_question(q_id):
             question.get('category', 'رومانسي')
         )
         
-        if save_questions(questions):
+        # حفظ الأسئلة المحدثة
+        success, error = save_questions(questions)
+        if success:
             return jsonify({'success': True, 'question': question})
         else:
             return jsonify({
                 'success': False, 
-                'error': 'فشل حفظ التحديثات'
+                'error': f'فشل حفظ التحديثات: {error}'
             }), 500
     
+    except json.JSONDecodeError as e:
+        error_msg = f'خطأ في معالجة JSON: {str(e)}'
+        print(error_msg)
+        return jsonify({'success': False, 'error': error_msg}), 400
     except Exception as e:
-        return jsonify({
-            'success': False, 
-            'error': f'خطأ سيرفر: {str(e)}'
-        }), 500
+        error_msg = f'خطأ سيرفر غير متوقع: {str(e)}'
+        print(f"خطأ في update_question: {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
 
 
 @app.route('/api/admin/delete-question/<int:q_id>', methods=['DELETE'])
@@ -418,31 +460,38 @@ def delete_question(q_id):
         q_id (int): معرف السؤال
     
     Returns:
-        JSON: {"success": bool}
+        JSON: {"success": bool, "error": error message (if any)}
     """
     try:
+        # تحميل الأسئلة الحالية
         questions = load_questions()
         initial_count = len(questions)
+        
+        # البحث عن السؤال وتصفيته
         questions = [q for q in questions if q.get('id') != q_id]
         
         if len(questions) == initial_count:
             return jsonify({
                 'success': False, 
-                'error': 'السؤال غير موجود'
+                'error': f'السؤال برقم {q_id} غير موجود'
             }), 404
         
-        if save_questions(questions):
+        # حفظ الأسئلة المحدثة
+        success, error = save_questions(questions)
+        if success:
             return jsonify({'success': True})
         else:
             return jsonify({
                 'success': False, 
-                'error': 'فشل حذف السؤال'
+                'error': f'فشل حذف السؤال: {error}'
             }), 500
     
     except Exception as e:
+        error_msg = f'خطأ سيرفر غير متوقع: {str(e)}'
+        print(f"خطأ في delete_question: {error_msg}")
         return jsonify({
             'success': False, 
-            'error': f'خطأ سيرفر: {str(e)}'
+            'error': error_msg
         }), 500
 
 
