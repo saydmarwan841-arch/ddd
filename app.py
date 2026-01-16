@@ -3,13 +3,15 @@
 تطبيق اختبار الحب الرومانسي
 Romantic Love Quiz Web Application
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Version: 2.0
+Version: 3.0 - Production Ready with Supabase PostgreSQL
 Language: Python 3.7+
 Framework: Flask 2.3.3
+Database: Supabase (PostgreSQL)
 Author: Love Quiz Team
 Date: 2024
 Description: تطبيق ويب تفاعلي يختبر مشاعر الحب الرومانسية
             مع دعم أنواع أسئلة متعددة (MCQ، True/False)
+            متوافق 100% مع Vercel
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
@@ -18,10 +20,20 @@ from flask import (
     Flask, render_template, request, jsonify, 
     redirect, url_for, session
 )
-import json
 import os
 from functools import wraps
 import secrets
+import json
+from datetime import datetime
+
+# Database imports
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import psycopg2.pool
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
 
 
 # ==================== تهيئة التطبيق ====================
@@ -31,106 +43,191 @@ app.secret_key = secrets.token_hex(32)
 
 # ==================== الإعدادات والثوابت ====================
 class Config:
-    """إعدادات التطبيق"""
-    # استخدام المسار النسبي الآمن لـ Vercel
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    QUESTIONS_FILE = os.path.join(BASE_DIR, 'questions_ar.json')
-    ADMIN_PASSWORD = '0000'
+    """إعدادات التطبيق - يستخدم متغيرات البيئة"""
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '0000')
     MAX_QUESTIONS = 100
-    ENCODING = 'utf-8'
+    
+    # التحقق من وجود DATABASE_URL
+    if not DATABASE_URL:
+        raise ValueError("❌ DATABASE_URL environment variable is not set. "
+                        "Please add it to your Vercel environment variables.")
+
+
+# ==================== اتصال قاعدة البيانات ====================
+class Database:
+    """فئة للتعامل مع قاعدة البيانات"""
+    
+    _connection_pool = None
+    
+    @staticmethod
+    def get_pool():
+        """الحصول على connection pool"""
+        if Database._connection_pool is None:
+            try:
+                Database._connection_pool = psycopg2.pool.SimpleConnectionPool(
+                    1, 20,
+                    Config.DATABASE_URL
+                )
+                print("✅ Database connection pool created successfully")
+            except psycopg2.Error as e:
+                print(f"❌ Database connection error: {e}")
+                raise
+        return Database._connection_pool
+    
+    @staticmethod
+    def get_connection():
+        """الحصول على اتصال من pool"""
+        try:
+            pool = Database.get_pool()
+            return pool.getconn()
+        except psycopg2.Error as e:
+            print(f"❌ Error getting connection: {e}")
+            raise
+    
+    @staticmethod
+    def return_connection(conn):
+        """إرجاع الاتصال إلى pool"""
+        if conn:
+            Database.get_pool().putconn(conn)
+    
+    @staticmethod
+    def execute_query(query, params=None, fetch=False):
+        """تنفيذ استعلام مع معالجة الأخطاء"""
+        conn = None
+        try:
+            conn = Database.get_connection()
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, params or ())
+                
+                if fetch:
+                    result = cur.fetchall()
+                    conn.commit()
+                    return result
+                else:
+                    conn.commit()
+                    return True
+        except psycopg2.Error as e:
+            if conn:
+                conn.rollback()
+            print(f"❌ Database error: {e}")
+            raise
+        finally:
+            if conn:
+                Database.return_connection(conn)
+    
+    @staticmethod
+    def execute_query_one(query, params=None):
+        """تنفيذ استعلام وإرجاع صف واحد فقط"""
+        conn = None
+        try:
+            conn = Database.get_connection()
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, params or ())
+                result = cur.fetchone()
+                conn.commit()
+                return result
+        except psycopg2.Error as e:
+            if conn:
+                conn.rollback()
+            print(f"❌ Database error: {e}")
+            raise
+        finally:
+            if conn:
+                Database.return_connection(conn)
+    
+    @staticmethod
+    def init_db():
+        """إنشء جداول قاعدة البيانات إذا لم تكن موجودة"""
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS questions (
+            id SERIAL PRIMARY KEY,
+            type VARCHAR(10) NOT NULL,
+            question TEXT NOT NULL,
+            options JSONB NOT NULL,
+            correct_answer TEXT NOT NULL,
+            category VARCHAR(50) DEFAULT 'رومانسي',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_questions_id ON questions(id);
+        """
+        try:
+            Database.execute_query(create_table_sql)
+            print("✅ Database tables initialized successfully")
+        except Exception as e:
+            print(f"⚠️ Database init warning: {e}")
 
 
 # ==================== دوال المساعدة ====================
 
 def load_questions():
     """
-    تحميل الأسئلة من ملف JSON
+    تحميل جميع الأسئلة من قاعدة البيانات
     
     Returns:
-        list: قائمة الأسئلة أو قائمة فارغة في حالة عدم وجود الملف
-    
-    Raises:
-        JSONDecodeError: عند فشل فك تشفير JSON
+        list: قائمة الأسئلة
     """
     try:
-        if os.path.exists(Config.QUESTIONS_FILE):
-            with open(Config.QUESTIONS_FILE, 'r', encoding=Config.ENCODING) as f:
-                questions = json.load(f)
-                # التحقق من صحة البيانات
-                if isinstance(questions, list):
-                    return questions
-                return []
-        return []
-    except json.JSONDecodeError as e:
-        print(f"خطأ في فك تشفير JSON عند تحميل الأسئلة: {e}")
-        return []
-    except IOError as e:
-        print(f"خطأ في الوصول للملف عند تحميل الأسئلة: {e}")
-        return []
+        query = """
+        SELECT id, type, question, options, correct_answer, category, 
+               created_at, updated_at
+        FROM questions
+        ORDER BY id ASC
+        """
+        results = Database.execute_query(query, fetch=True)
+        
+        # تحويل النتائج إلى قاموس يسهل التعامل معه
+        questions = []
+        for row in results:
+            question = {
+                'id': row['id'],
+                'type': row['type'],
+                'question': row['question'],
+                'options': row['options'] if isinstance(row['options'], list) else json.loads(row['options']),
+                'correct_answer': row['correct_answer'],
+                'category': row['category']
+            }
+            questions.append(question)
+        
+        return questions
     except Exception as e:
-        print(f"خطأ غير متوقع عند تحميل الأسئلة: {e}")
+        print(f"❌ Error loading questions: {e}")
         return []
 
 
-def save_questions(questions):
+def find_question_by_id(q_id):
     """
-    حفظ الأسئلة في ملف JSON
+    البحث عن سؤال بواسطة المعرف من قاعدة البيانات
     
     Args:
-        questions (list): قائمة الأسئلة للحفظ
-    
-    Returns:
-        tuple: (success: bool, error_message: str or None)
-    """
-    try:
-        # التحقق من أن البيانات قابلة للتسلسل
-        if not isinstance(questions, list):
-            return False, "البيانات يجب أن تكون قائمة"
-        
-        # التأكد من وجود المجلد
-        dir_path = os.path.dirname(Config.QUESTIONS_FILE)
-        if dir_path and not os.path.exists(dir_path):
-            os.makedirs(dir_path, exist_ok=True)
-        
-        # كتابة البيانات إلى الملف
-        with open(Config.QUESTIONS_FILE, 'w', encoding=Config.ENCODING) as f:
-            json.dump(
-                questions, f, 
-                indent=2, 
-                ensure_ascii=False,
-                sort_keys=False
-            )
-        return True, None
-    except json.JSONDecodeError as e:
-        error_msg = f"خطأ في تحويل البيانات إلى JSON: {str(e)}"
-        print(error_msg)
-        return False, error_msg
-    except IOError as e:
-        error_msg = f"خطأ في الوصول للملف: {str(e)}"
-        print(error_msg)
-        return False, error_msg
-    except PermissionError as e:
-        error_msg = f"خطأ في الصلاحيات: {str(e)}"
-        print(error_msg)
-        return False, error_msg
-    except Exception as e:
-        error_msg = f"خطأ غير متوقع عند حفظ الأسئلة: {str(e)}"
-        print(error_msg)
-        return False, error_msg
-
-
-def find_question_by_id(questions, q_id):
-    """
-    البحث عن سؤال بواسطة المعرف
-    
-    Args:
-        questions (list): قائمة الأسئلة
         q_id (int): معرف السؤال
     
     Returns:
         dict or None: السؤال المطلوب أو None
     """
-    return next((q for q in questions if q.get('id') == q_id), None)
+    try:
+        query = """
+        SELECT id, type, question, options, correct_answer, category
+        FROM questions
+        WHERE id = %s
+        """
+        result = Database.execute_query_one(query, (q_id,))
+        
+        if result:
+            return {
+                'id': result['id'],
+                'type': result['type'],
+                'question': result['question'],
+                'options': result['options'] if isinstance(result['options'], list) else json.loads(result['options']),
+                'correct_answer': result['correct_answer'],
+                'category': result['category']
+            }
+        return None
+    except Exception as e:
+        print(f"❌ Error finding question: {e}")
+        return None
 
 
 def validate_question_data(data):
@@ -151,6 +248,9 @@ def validate_question_data(data):
     
     if data.get('type') not in ['mcq', 'tf']:
         return False, "نوع السؤال يجب أن يكون 'mcq' أو 'tf'"
+    
+    if not isinstance(data.get('options'), list) or len(data.get('options', [])) == 0:
+        return False, "الخيارات يجب أن تكون قائمة غير فارغة"
     
     return True, None
 
@@ -181,11 +281,15 @@ def index():
     صفحة الاختبار الرئيسية
     Main Quiz Page
     """
-    questions = load_questions()
-    return render_template(
-        'index_ar.html', 
-        questions=questions
-    )
+    try:
+        questions = load_questions()
+        return render_template(
+            'index_ar.html', 
+            questions=questions
+        )
+    except Exception as e:
+        print(f"❌ Error in index route: {e}")
+        return jsonify({'error': 'خطأ في تحميل الصفحة'}), 500
 
 
 @app.route('/api/submit', methods=['POST'])
@@ -228,7 +332,7 @@ def submit_quiz():
         
         # حساب النتيجة بمقارنة الإجابات الصحيحة
         for q_id, user_answer in answers.items():
-            question = find_question_by_id(questions, int(q_id))
+            question = find_question_by_id(int(q_id))
             if question:
                 correct_answer = question.get('correct_answer')
                 # تحويل الإجابات للمقارنة الصحيحة
@@ -346,40 +450,47 @@ def add_question():
         if not is_valid:
             return jsonify({'success': False, 'error': error_msg}), 400
         
-        # تحميل الأسئلة الحالية
-        questions = load_questions()
+        # إدراج السؤال الجديد في قاعدة البيانات
+        insert_query = """
+        INSERT INTO questions (type, question, options, correct_answer, category)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id, type, question, options, correct_answer, category
+        """
         
-        # إنشاء سؤال جديد بمعرف فريد
-        new_id = max([q.get('id', 0) for q in questions], default=0) + 1
+        params = (
+            data.get('type', 'mcq'),
+            data.get('question'),
+            json.dumps(data.get('options'), ensure_ascii=False),
+            data.get('correct_answer'),
+            data.get('category', 'رومانسي')
+        )
         
-        new_question = {
-            'id': new_id,
-            'type': data.get('type', 'mcq'),
-            'question': data.get('question'),
-            'options': data.get('options'),
-            'correct_answer': data.get('correct_answer'),
-            'category': data.get('category', 'رومانسي')
-        }
+        result = Database.execute_query_one(insert_query, params)
         
-        questions.append(new_question)
-        
-        # حفظ الأسئلة المحدثة
-        success, error = save_questions(questions)
-        if success:
+        if result:
+            new_question = {
+                'id': result['id'],
+                'type': result['type'],
+                'question': result['question'],
+                'options': result['options'] if isinstance(result['options'], list) else json.loads(result['options']),
+                'correct_answer': result['correct_answer'],
+                'category': result['category']
+            }
             return jsonify({'success': True, 'question': new_question}), 201
         else:
-            return jsonify({
-                'success': False, 
-                'error': f'فشل حفظ السؤال: {error}'
-            }), 500
+            return jsonify({'success': False, 'error': 'فشل إنشاء السؤال'}), 500
     
     except json.JSONDecodeError as e:
         error_msg = f'خطأ في معالجة JSON: {str(e)}'
-        print(error_msg)
+        print(f"❌ {error_msg}")
         return jsonify({'success': False, 'error': error_msg}), 400
+    except psycopg2.Error as e:
+        error_msg = f'خطأ في قاعدة البيانات: {str(e)}'
+        print(f"❌ {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
     except Exception as e:
         error_msg = f'خطأ سيرفر غير متوقع: {str(e)}'
-        print(f"خطأ في add_question: {error_msg}")
+        print(f"❌ {error_msg}")
         return jsonify({'success': False, 'error': error_msg}), 500
 
 
@@ -406,46 +517,59 @@ def update_question(q_id):
         if not data:
             return jsonify({'success': False, 'error': 'بيانات غير صحيحة'}), 400
         
-        # تحميل الأسئلة الحالية
-        questions = load_questions()
-        question = find_question_by_id(questions, q_id)
-        
+        # التحقق من وجود السؤال
+        question = find_question_by_id(q_id)
         if not question:
-            return jsonify({
-                'success': False, 
-                'error': f'السؤال برقم {q_id} غير موجود'
-            }), 404
+            return jsonify({'success': False, 'error': f'السؤال برقم {q_id} غير موجود'}), 404
         
-        # تحديث بيانات السؤال
-        question['type'] = data.get('type', question.get('type', 'mcq'))
-        question['question'] = data.get('question', question.get('question'))
-        question['options'] = data.get('options', question.get('options'))
-        question['correct_answer'] = data.get(
-            'correct_answer', 
-            question.get('correct_answer')
-        )
-        question['category'] = data.get(
-            'category', 
-            question.get('category', 'رومانسي')
+        # تحديث السؤال في قاعدة البيانات
+        update_query = """
+        UPDATE questions
+        SET type = %s,
+            question = %s,
+            options = %s,
+            correct_answer = %s,
+            category = %s,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+        RETURNING id, type, question, options, correct_answer, category
+        """
+        
+        params = (
+            data.get('type', question.get('type', 'mcq')),
+            data.get('question', question.get('question')),
+            json.dumps(data.get('options', question.get('options')), ensure_ascii=False),
+            data.get('correct_answer', question.get('correct_answer')),
+            data.get('category', question.get('category', 'رومانسي')),
+            q_id
         )
         
-        # حفظ الأسئلة المحدثة
-        success, error = save_questions(questions)
-        if success:
-            return jsonify({'success': True, 'question': question})
+        result = Database.execute_query_one(update_query, params)
+        
+        if result:
+            updated_question = {
+                'id': result['id'],
+                'type': result['type'],
+                'question': result['question'],
+                'options': result['options'] if isinstance(result['options'], list) else json.loads(result['options']),
+                'correct_answer': result['correct_answer'],
+                'category': result['category']
+            }
+            return jsonify({'success': True, 'question': updated_question})
         else:
-            return jsonify({
-                'success': False, 
-                'error': f'فشل حفظ التحديثات: {error}'
-            }), 500
+            return jsonify({'success': False, 'error': 'فشل تحديث السؤال'}), 500
     
     except json.JSONDecodeError as e:
         error_msg = f'خطأ في معالجة JSON: {str(e)}'
-        print(error_msg)
+        print(f"❌ {error_msg}")
         return jsonify({'success': False, 'error': error_msg}), 400
+    except psycopg2.Error as e:
+        error_msg = f'خطأ في قاعدة البيانات: {str(e)}'
+        print(f"❌ {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
     except Exception as e:
         error_msg = f'خطأ سيرفر غير متوقع: {str(e)}'
-        print(f"خطأ في update_question: {error_msg}")
+        print(f"❌ {error_msg}")
         return jsonify({'success': False, 'error': error_msg}), 500
 
 
@@ -463,36 +587,27 @@ def delete_question(q_id):
         JSON: {"success": bool, "error": error message (if any)}
     """
     try:
-        # تحميل الأسئلة الحالية
-        questions = load_questions()
-        initial_count = len(questions)
+        # حذف السؤال من قاعدة البيانات
+        delete_query = "DELETE FROM questions WHERE id = %s"
         
-        # البحث عن السؤال وتصفيته
-        questions = [q for q in questions if q.get('id') != q_id]
+        # أولاً، تحقق من وجود السؤال
+        question = find_question_by_id(q_id)
+        if not question:
+            return jsonify({'success': False, 'error': f'السؤال برقم {q_id} غير موجود'}), 404
         
-        if len(questions) == initial_count:
-            return jsonify({
-                'success': False, 
-                'error': f'السؤال برقم {q_id} غير موجود'
-            }), 404
+        # ثم احذفه
+        Database.execute_query(delete_query, (q_id,))
         
-        # حفظ الأسئلة المحدثة
-        success, error = save_questions(questions)
-        if success:
-            return jsonify({'success': True})
-        else:
-            return jsonify({
-                'success': False, 
-                'error': f'فشل حذف السؤال: {error}'
-            }), 500
+        return jsonify({'success': True})
     
+    except psycopg2.Error as e:
+        error_msg = f'خطأ في قاعدة البيانات: {str(e)}'
+        print(f"❌ {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
     except Exception as e:
         error_msg = f'خطأ سيرفر غير متوقع: {str(e)}'
-        print(f"خطأ في delete_question: {error_msg}")
-        return jsonify({
-            'success': False, 
-            'error': error_msg
-        }), 500
+        print(f"❌ {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
 
 
 @app.route('/api/questions')
@@ -504,8 +619,12 @@ def get_questions():
     Returns:
         JSON: قائمة جميع الأسئلة
     """
-    questions = load_questions()
-    return jsonify(questions)
+    try:
+        questions = load_questions()
+        return jsonify(questions)
+    except Exception as e:
+        print(f"❌ Error getting questions: {e}")
+        return jsonify({'error': 'خطأ في تحميل الأسئلة'}), 500
 
 
 # ==================== معالجة الأخطاء ====================
@@ -528,14 +647,28 @@ def forbidden(error):
     return jsonify({'error': 'الوصول مرفوض'}), 403
 
 
+# ==================== تهيئة قاعدة البيانات ====================
+
+def init_database():
+    """تهيئة قاعدة البيانات عند بدء التطبيق"""
+    try:
+        Database.init_db()
+        print("✅ Database initialized successfully")
+    except Exception as e:
+        print(f"⚠️ Database initialization warning: {e}")
+
+
 # ==================== نقطة الدخول ====================
 
 if __name__ == '__main__':
+    # تهيئة قاعدة البيانات
+    init_database()
+    
     # إعدادات التطوير
     # Production: debug=False, use production server (gunicorn)
     app.run(
-        debug=True,
-        port=5000,
-        host='localhost',
-        use_reloader=True
+        debug=os.environ.get('FLASK_ENV') == 'development',
+        port=int(os.environ.get('PORT', 5000)),
+        host='0.0.0.0',
+        use_reloader=False
     )
